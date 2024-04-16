@@ -1,0 +1,81 @@
+#!/bin/bash
+# Shorthand, easy, way to use the others four SBST commands (sbst-ctl, sbst-list, sbst-select and sbst-display)
+
+test -d /home/$USER/.config/sbst || mkdir -p /home/$USER/.config/sbst/tmp 
+
+case $1 in
+
+	-l | --list)
+	echo -e "All Topics:"
+	sbst-list --list
+	;;
+	
+	-n | --new)
+	sbst-list --create 
+	;;
+
+	-S | --start) 
+	echo -e 'Select a Topic: '
+	sbst-list --list
+	read -p "Selected: " topic
+	sbst-ctl --start $topic
+	;;
+
+	-p | --pause)
+	sbst-ctl --pause
+	;;
+
+	-r | --resume)
+	sbst-ctl --resume
+	;;
+
+	-f | --finish)
+	sbst-ctl --finish
+	;;
+
+	-s | --show)
+	sbst-ctl --show
+	;;
+
+	-v | --view)
+	sbst-select --select-topic $2
+	;;
+
+	-H | --hours)
+	sbst-select --select-topic --hours $2
+	;;
+
+	-a | --view-all)
+	sbst-select --select-all
+	;;
+
+	-h | --help)
+	echo -e "	SBST USAGE
+	You need to create a topic with sbst -n before starting the timer.
+	The <index> is the topic number in the output of sbst -l.
+
+	Options:
+	 Manage Topics:
+	 -n, --new   \t\tcreate a new topic
+	 -l, --list  \t\tlist created topics
+	
+	 Timer:
+	 -S, --start \t\tstart the timer
+	 -s, --show  \t\tshow timer status
+	 -p, --pause \t\tpause the timer
+	 -r, --resume\t\tresume the timer
+	 -f, --finish\t\tfinish the timer and save data
+	
+	 View data:
+	 -a, --view-all     \tview all entries
+	 -v, --view <index> \tview entries for a topic
+	 -H, --hours <index>\tview total acumulated hours for a topic
+
+	 -h, --help\t\tprint this help message 
+	"
+	;;
+
+	*)
+	;;
+esac
+

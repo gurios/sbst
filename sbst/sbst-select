@@ -1,0 +1,33 @@
+#!/bin/bash
+# SBST Make a Selection used by sbst-display
+
+case $1 in
+	--select-entry) # Selects a single entry from sbst/data
+	index_in_data=$2
+	entry=$(sed -n -e ""$index_in_data"p" /home/$USER/.config/sbst/data)
+	sbst-display --list-single "$entry"
+	;; 
+
+	--select-topic) # Selects all entries matching a given topic ID from sbst/data
+	index_in_topics=$2 
+	test "$2" == '--hours' &&  index_in_topics=$3 
+	topic_id=$(cat /home/$USER/.config/sbst/topics | sed -n -e ""$index_in_topics"p" | cut -f 1)
+	entries=$(cat /home/$USER/.config/sbst/data | grep $topic_id)
+	if test "$2" == '--hours';
+	then
+	# Tells sbst-display to show the acumulated hours for the selected entries
+	sbst-display --hours "$entries" 
+	else
+	# Tells sbst-display to show the selected entries
+	sbst-display --list-many "$entries"
+	fi
+	;; 
+
+	--select-all) # Select all entries in sbst/data
+	entries="$(cat /home/$USER/.config/sbst/data)"
+	sbst-display --list-many "$entries"
+	;; 
+	*)
+	;;
+esac
+

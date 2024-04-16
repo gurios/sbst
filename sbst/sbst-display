@@ -1,0 +1,65 @@
+#!/bin/bash
+# SBST Display Options, display data in sbst/data
+
+# Get name from ID
+get_name() {
+id=$1
+topic_name=$(sed -n -e "/$id/p" /home/$USER/.config/sbst/topics | cut -f 2)
+echo "$topic_name"
+}
+
+# Format to H:M:S
+format() {
+echo $(date -d @$1 -u +%H:%M:%S)
+}
+
+# Calc a entry time from start and finish time, minus pause time
+calc_entry_time() {
+line_string=$1
+start=$(echo $line_string | cut -d ' ' -f 2)
+finish=$(echo $line_string | cut -d ' ' -f 3)
+pause=$(echo $line_string | cut -d ' ' -f 4)
+echo $(( $finish - $start - $pause ))
+}
+
+# Display a given entry of sbst/data, from a line string:
+display_entry() {
+line_string=$1
+date=$(date -d @$(echo $line_string | cut -d ' ' -f 2) -u +'%A %d %B %Y')
+time=$(format $(calc_entry_time "$line_string"))
+name=$(echo "$(get_name $(echo "$entry" | cut -d ' ' -f 1))")
+echo -e " <$time> → "$name" → $date"
+}
+
+case $1 in
+	--list-single) # Display a single entry
+	entry="$2"
+	#echo " ↓ $(get_name $(echo "$entry" | cut -d ' ' -f 1))"
+	display_entry "$entry"
+	;; 
+	
+	--list-many) # Display many entries
+	entries="$2"
+	while read entry;
+	do
+	#	echo -e " ↓ $(get_name $(echo "$entry" | cut -d ' ' -f 1))"
+		display_entry "$entry"
+		#echo ''
+	done <<< "$entries"
+	;; 
+
+	--hours) # Sum all acumulated hours of given selection of entries
+	entries="$2"
+	topic_name=$(get_name $(echo $entries | cut -d ' ' -f 1))
+	sum=0
+	while read entry;
+	do
+		sum=$(( $sum + $(calc_entry_time "$entry") ))
+	done <<< "$entries"	
+	echo "  $topic_name's acumulated hours: $(format $sum)"
+	;;
+
+	*)
+	;;
+esac
+

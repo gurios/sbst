@@ -1,0 +1,18 @@
+#!/bin/bash
+# Manage Topics in sbst/topics
+
+case $1 in
+	--list) # List topics
+	cat /home/$USER/.config/sbst/topics 2> /dev/null | cut -f 2 | nl
+	;;
+	
+	--create) # create a new topic
+	read -p "Topic name: " topic
+	topic_id=$(echo $topic | sha1sum | cut -c 1-20)
+	echo -e $topic_id\\t$topic >> /home/$USER/.config/sbst/topics &&
+	echo $topic was created.
+	;;
+	
+	*)
+	;;
+esac

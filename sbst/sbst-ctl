@@ -1,0 +1,188 @@
+#!/bin/bash
+# SBST CONTROL, controls the timer
+
+# Misc ----------------------------------
+
+# Format to H:M:S
+format() {
+echo $(date -d @$1 -u +%H:%M:%S)
+}
+
+# Get Name from ID
+get_name() {
+id=$1
+topic_name=$(sed -n -e "/$id/p" /home/$USER/.config/sbst/topics | cut -f 2)
+echo "$topic_name"
+}
+
+# Display Current Timer 
+get_current() {
+now=$(date +%s)
+from=$(cat /home/$USER/.config/sbst/tmp/start_time)
+diff=$(($now - $from))
+echo "$diff"
+}
+
+# Display Current PAUSED Timer
+get_current_pause() {
+now=$(date +%s)
+pause_time=$(cat /home/$USER/.config/sbst/tmp/pause_time)
+current_pause_time=$(( $now - $pause_time ))
+echo "$current_pause_time"
+}
+
+# Sum all the pauses intervals
+get_pauses_sum() {
+if test -f "/home/$USER/.config/sbst/tmp/pauses";
+then
+total_pause_time=0
+while read interval
+do
+        total_pause_time=$(( $total_pause_time + $interval ))
+done < /home/$USER/.config/sbst/tmp/pauses
+echo $total_pause_time
+else
+echo 0
+fi
+}
+
+# Clear tmp
+reset_tmp() {
+rm /home/$USER/.config/sbst/tmp/*
+}
+
+# Commands ------------------------------
+
+# Start Timer
+start_timer() {
+timer_status=$(cat /home/$USER/.config/sbst/tmp/timer_status 2> /dev/null) 
+if test "$timer_status" == "PAUSED" || test "$timer_status" == "RUNNING";
+then
+	echo "ERROR: There is timer running already."
+	exit
+fi
+topic=$1
+topic_id=$(sed -n -e "$topic p" /home/$USER/.config/sbst/topics | cut -f 1)
+topic_name=$(sed -n -e "$topic p" /home/$USER/.config/sbst/topics | cut -f 2)
+read -p "Start timer for $topic_name (y)? " confirm
+if test $confirm == "y";
+then
+test -d /home/$USER/.config/sbst/tmp || mkdir /home/$USER/.config/sbst/tmp
+start_time=$(date +%s)
+echo $start_time > /home/$USER/.config/sbst/tmp/start_time &&
+echo "RUNNING" > /home/$USER/.config/sbst/tmp/timer_status &&
+echo $topic_id > /home/$USER/.config/sbst/tmp/topic &&
+echo -e "Timer started."
+fi
+}
+
+# Pause Timer
+pause_timer() {
+timer_status=$(cat /home/$USER/.config/sbst/tmp/timer_status 2> /dev/null)
+if test "$timer_status" != "RUNNING";
+then
+	echo "ERROR: No timer was started or the timer is already paused."
+	exit
+fi 
+start_time=$(cat /home/$USER/.config/sbst/tmp/start_time)
+pause_time=$(date +%s)
+echo "PAUSED" > /home/$USER/.config/sbst/tmp/timer_status &&
+echo $pause_time > /home/$USER/.config/sbst/tmp/pause_time &&
+echo -e "Timer paused."
+}
+
+# Resume Timer
+resume_timer() {
+timer_status=$(cat /home/$USER/.config/sbst/tmp/timer_status 2> /dev/null)
+if test "$timer_status" != "PAUSED";
+then
+	echo "ERROR: No timer was started or the timer is not paused."
+	exit
+fi 
+resume_time=$(date +%s)
+pause_time=$(cat /home/$USER/.config/sbst/tmp/pause_time) 
+pause_interval=$(( $resume_time - $pause_time ))
+echo "$pause_interval" >> /home/$USER/.config/sbst/tmp/pauses &&
+echo "RUNNING" > /home/$USER/.config/sbst/tmp/timer_status 
+echo -e "Timer resumed."
+}
+
+# Current Timer time and status
+show_timer() {
+timer_status=$(cat /home/$USER/.config/sbst/tmp/timer_status 2> /dev/null)
+if test "$timer_status" != "PAUSED" && test "$timer_status" != "RUNNING";
+then
+	echo "ERROR: There is no timer running."
+	exit
+fi
+name=$(get_name $(cat /home/$USER/.config/sbst/tmp/topic))
+time_status=$(cat /home/$USER/.config/sbst/tmp/timer_status)
+if test "$time_status" == "RUNNING";
+then
+if test -f "/home/$USER/.config/sbst/tmp/pause_time"; 
+then
+current_time=$(get_current) 
+pause_time=$(get_pauses_sum) 
+current_time_minus_pause=$(( $current_time - $pause_time ))
+time=$(format $current_time_minus_pause)
+else
+time=$(format $(get_current))
+fi
+elif test "$time_status" == "PAUSED";
+then
+now=$(date +%s)
+current_time=$(get_current) 
+pause_time=$(get_current_pause)
+pauses=$(get_pauses_sum)
+time=$(format $(( $current_time - $pause_time - $pauses)) )
+fi
+#echo -e "\n » TOPIC: $name \n » TIMER: $time \n » STATUS: $time_status\n"
+echo -e " » $name <$time> $time_status"
+}
+
+# Finish Timer
+finish_timer() {
+timer_status=$(cat /home/$USER/.config/sbst/tmp/timer_status 2> /dev/null)
+if test "$timer_status" != "PAUSED" && test "$timer_status" != "RUNNING";
+then
+	echo "ERROR: There is no timer running."
+	exit
+fi
+topic_name=$(get_name $(cat /home/$USER/.config/sbst/tmp/topic))
+read -p "FINISH timer for $topic_name (y)? " confirm
+if test $confirm == "y";
+then
+test "$timer_status" == "PAUSED" && resume_timer > /dev/null 
+finish_time=$(date +%s)
+start_time=$(cat /home/$USER/.config/sbst/tmp/start_time) 
+paused_time=$(get_pauses_sum) 
+topic_id=$(cat /home/$USER/.config/sbst/tmp/topic)
+echo -e "$topic_id\t$start_time\t$finish_time\t$paused_time" >> /home/$USER/.config/sbst/data && reset_tmp
+fi
+}
+
+case $1 in
+	--start)
+	topic=$2
+	start_timer $topic
+	;;
+
+	--pause)
+	pause_timer
+	;;
+
+	--resume)
+	resume_timer
+	;;
+
+	--show)
+	show_timer
+	;;
+
+	--finish)
+	finish_timer
+	;;
+
+	*)
+	;;
+esac
